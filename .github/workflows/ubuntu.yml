@@ -33,7 +33,7 @@ jobs:
           # 3. Tailscale Install (With Exit Node)
           curl -fsSL https://tailscale.com/install.sh | sh
           # Note: Exit node ke liye sudo permissions lagengi hi
-          sudo tailscale up --auth-key=sudo tailscale up --auth-key=tskey-auth-k1tjFyzw2Q11CNTRL-q19KVp6CJdUNQdXjJGpsdUhvNofYaw5ZS --advertise-exit-node --advertise-exit-node
+          sudo tailscale up --auth-key=tskey-auth-kxvZEvNHe811CNTRL-q4eDMfeZjfJNRQipa5RNgJNQ9kT7aGaSL --advertise-exit-node
 
           # 4. Cloudflare Tunnel Setup
          
