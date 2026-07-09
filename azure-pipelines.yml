@@ -4,7 +4,7 @@ trigger: none
 pr: none
 
 pool:
-  vmImage: 'macOS-14'
+  vmImage: 'macOS-Latest'
 
 steps:
 - checkout: self
