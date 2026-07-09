@@ -3,13 +3,27 @@ pool:
 
 steps:
 - bash: |
+    set -e
+
+    echo "Installing tmate..."
     brew install tmate
-    tmate -F &
-    sleep 15
 
-    echo "SSH:"
-    tmate display -p '#{tmate_ssh}'
+    echo "Starting tmate..."
+    tmate -S /tmp/tmate.sock new-session -d
 
+    sleep 10
+
+    echo "=============================="
+    echo "SSH Connection:"
+    tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
+
+    echo
+    echo "Web Connection:"
+    tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
+    echo "=============================="
+
+    echo "Keeping session alive..."
     while true; do
       sleep 60
     done
+  displayName: "Start macOS Debug Shell"
