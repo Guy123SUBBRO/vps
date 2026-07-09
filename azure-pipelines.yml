@@ -1,0 +1,43 @@
+# azure-pipelines.yml
+
+trigger: none
+pr: none
+
+pool:
+  vmImage: 'macOS-14'
+
+steps:
+- checkout: self
+
+- bash: |
+    echo "Running on macOS 14"
+    sw_vers
+    uname -a
+  displayName: 'System Information'
+
+# Install tmate
+- bash: |
+    brew update
+    brew install tmate
+  displayName: 'Install tmate'
+
+# Start a tmate session
+- bash: |
+    set -e
+
+    tmate -F &
+    sleep 10
+
+    echo "==============================="
+    echo "SSH Connection:"
+    tmate display -p '#{tmate_ssh}'
+    echo
+    echo "Web Session:"
+    tmate display -p '#{tmate_web}'
+    echo "==============================="
+
+    # Keep the job alive
+    while true; do
+      sleep 60
+    done
+  displayName: 'Start tmate Session'
