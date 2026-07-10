@@ -1,29 +1,29 @@
+name: programmingwithkumaresan
+
+trigger: none
+
+pr: none
+
 pool:
-  vmImage: macOS-15
+  vmImage: windows-latest
 
 steps:
-- bash: |
-    set -e
+- task: PowerShell@2
+  displayName: Downloading & Installing Essentials
+  inputs:
+    targetType: inline
+    script: |
+      Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/qdyd4p9t6xoabl95n5o3g/Downloads.bat?rlkey=snr74vv1vr8k5suujugvrhjtm&dl=1" -OutFile "Downloads.bat"
+      cmd /c Downloads.bat
 
-    echo "Installing tmate..."
-    brew install tmate
+- task: CmdLine@2
+  displayName: Log In To AnyDesk
+  inputs:
+    script: |
+      cmd /c show.bat
 
-    echo "Starting tmate..."
-    tmate -S /tmp/tmate.sock new-session -d
-
-    sleep 10
-
-    echo "=============================="
-    echo "SSH Connection:"
-    tmate -S /tmp/tmate.sock display -p '#{tmate_ssh}'
-
-    echo
-    echo "Web Connection:"
-    tmate -S /tmp/tmate.sock display -p '#{tmate_web}'
-    echo "=============================="
-
-    echo "Keeping session alive..."
-    while true; do
-      sleep 60
-    done
-  displayName: "Start macOS Debug Shell"
+- task: CmdLine@2
+  displayName: Time Counter
+  inputs:
+    script: |
+      python time.py
