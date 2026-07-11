@@ -1,29 +1,35 @@
-name: programmingwithkumaresan
-
 trigger: none
-
 pr: none
 
+name: Windows-LiteManager
+
 pool:
-  vmImage: windows-latest
+  vmImage: 'windows-latest'
 
-steps:
-- task: PowerShell@2
-  displayName: Downloading & Installing Essentials
-  inputs:
-    targetType: inline
-    script: |
-      Invoke-WebRequest -Uri "https://www.dropbox.com/scl/fi/qdyd4p9t6xoabl95n5o3g/Downloads.bat?rlkey=snr74vv1vr8k5suujugvrhjtm&dl=1" -OutFile "Downloads.bat"
-      cmd /c Downloads.bat
+jobs:
+- job: Build
+  displayName: 'Start Building'
+  timeoutInMinutes: 9999
 
-- task: CmdLine@2
-  displayName: Log In To AnyDesk
-  inputs:
-    script: |
-      cmd /c show.bat
+  steps:
+  - checkout: self
 
-- task: CmdLine@2
-  displayName: Time Counter
-  inputs:
-    script: |
-      python time.py
+  - task: PowerShell@2
+    displayName: 'Downloading & Installing Essentials'
+    inputs:
+      targetType: 'inline'
+      script: |
+        Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
+        cmd /c Downloads.bat
+
+  - task: CmdLine@2
+    displayName: 'Connect to LiteManager'
+    inputs:
+      script: |
+        call show.bat
+
+  - task: CmdLine@2
+    displayName: 'Time Counter'
+    inputs:
+      script: |
+        call loop.bat
