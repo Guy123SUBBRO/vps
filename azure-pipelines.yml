@@ -1,35 +1,138 @@
 trigger: none
 pr: none
 
-name: Windows-LiteManager
+name: RDP
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: windows-latest
 
 jobs:
-- job: Build
-  displayName: 'Start Building'
-  timeoutInMinutes: 9999
+- job: secure_rdp
+  displayName: Secure RDP
+  timeoutInMinutes: 3600
 
   steps:
-  - checkout: self
+  - checkout: none
 
   - task: PowerShell@2
-    displayName: 'Downloading & Installing Essentials'
+    displayName: Configure Core RDP Settings
     inputs:
-      targetType: 'inline'
+      targetType: inline
       script: |
-        Invoke-WebRequest -Uri "https://gitlab.com/chamod12/lm_win-10_github_rdp/-/raw/main/Downloads.bat" -OutFile "Downloads.bat"
-        cmd /c Downloads.bat
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' `
+          -Name "fDenyTSConnections" -Value 0 -Force
 
-  - task: CmdLine@2
-    displayName: 'Connect to LiteManager'
-    inputs:
-      script: |
-        call show.bat
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
+          -Name "UserAuthentication" -Value 0 -Force
 
-  - task: CmdLine@2
-    displayName: 'Time Counter'
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' `
+          -Name "SecurityLayer" -Value 0 -Force
+
+        netsh advfirewall firewall delete rule name="RDP-Tailscale"
+
+        netsh advfirewall firewall add rule name="RDP-Tailscale" `
+          dir=in action=allow protocol=TCP localport=3389
+
+        Restart-Service TermService -Force
+
+  - task: PowerShell@2
+    displayName: Create RDP User
     inputs:
+      targetType: inline
       script: |
-        call loop.bat
+        $charSet = @{
+            Upper   = [char[]](65..90)
+            Lower   = [char[]](97..122)
+            Number  = [char[]](48..57)
+            Special = ([char[]](33..47)+[char[]](58..64)+[char[]](91..96)+[char[]](123..126))
+        }
+
+        $rawPassword = @()
+        $rawPassword += $charSet.Upper | Get-Random -Count 4
+        $rawPassword += $charSet.Lower | Get-Random -Count 4
+        $rawPassword += $charSet.Number | Get-Random -Count 4
+        $rawPassword += $charSet.Special | Get-Random -Count 4
+
+        $password = -join ($rawPassword | Sort-Object {Get-Random})
+
+        $securePass = ConvertTo-SecureString $password -AsPlainText -Force
+
+        New-LocalUser -Name "RDP" `
+          -Password $securePass `
+          -AccountNeverExpires
+
+        Add-LocalGroupMember Administrators RDP
+        Add-LocalGroupMember "Remote Desktop Users" RDP
+
+        Write-Host "##vso[task.setvariable variable=RDP_USER]RDP"
+        Write-Host "##vso[task.setvariable variable=RDP_PASSWORD]$password"
+
+  - task: PowerShell@2
+    displayName: Install Tailscale
+    inputs:
+      targetType: inline
+      script: |
+        $url="https://pkgs.tailscale.com/stable/tailscale-setup-1.82.0-amd64.msi"
+        $msi="$env:TEMP\tailscale.msi"
+
+        Invoke-WebRequest $url -OutFile $msi
+
+        Start-Process msiexec.exe `
+          -ArgumentList "/i `"$msi`" /quiet /norestart" `
+          -Wait
+
+        Remove-Item $msi -Force
+
+  - task: PowerShell@2
+    displayName: Connect Tailscale
+    inputs:
+      targetType: inline
+      script: |
+        & "$env:ProgramFiles\Tailscale\tailscale.exe" up `
+          --authkey="tskey-auth-kkjXrKWzQW11CNTRL-hXenkiLPgPYmfd48wauEQY8t51ZCRJty" `
+          --hostname="ado-$(Build.BuildId)"
+
+        $ip=$null
+
+        for($i=0;$i -lt 10;$i++){
+            $ip=& "$env:ProgramFiles\Tailscale\tailscale.exe" ip -4
+            if($ip){break}
+            Start-Sleep 5
+        }
+
+        if(!$ip){
+            throw "No Tailscale IP assigned."
+        }
+
+        Write-Host "##vso[task.setvariable variable=TAILSCALE_IP]$ip"
+
+  - task: PowerShell@2
+    displayName: Verify RDP
+    inputs:
+      targetType: inline
+      script: |
+        $result=Test-NetConnection "$(TAILSCALE_IP)" -Port 3389
+
+        if(!$result.TcpTestSucceeded){
+            throw "RDP test failed."
+        }
+
+        Write-Host "RDP OK"
+
+  - task: PowerShell@2
+    displayName: Connection Details
+    inputs:
+      targetType: inline
+      script: |
+        Write-Host ""
+        Write-Host "=============================="
+        Write-Host "Address : $(TAILSCALE_IP)"
+        Write-Host "Username: $(RDP_USER)"
+        Write-Host "Password: $(RDP_PASSWORD)"
+        Write-Host "=============================="
+        Write-Host ""
+
+        while($true){
+            Write-Host "$(Get-Date) - RDP Active"
+            Start-Sleep 300
+        }
